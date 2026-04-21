@@ -1,0 +1,37 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.33.1
+      accept:
+      - application/json
+    method: GET
+    uri: https://alphafold.ebi.ac.uk/api/prediction/Z99999
+  response:
+    body:
+      string: '{"error":"Invalid identifier format. Please use a UniProt accession
+        or a supported AlphaFold DB ID."}'
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000
+      Content-Length:
+      - '101'
+      Via:
+      - 1.1 google
+      content-type:
+      - application/json
+      date:
+      - Wed, 15 Apr 2026 05:39:29 GMT
+      server:
+      - Google Frontend
+      x-cloud-trace-context:
+      - 5e188541b1d2027d1f1066c63af74b01
+    status:
+      code: 400
+      message: Bad Request
+version: 1

@@ -5,7 +5,7 @@ from src.fetchers import (
     search_alphafold_by_uniprot_id, 
     search_rcsb_by_sequence,
 )
-from src.utils import (
+from src.validators import (
     is_amino_acid_sequence
 )
 
@@ -130,7 +130,6 @@ def test_rcsb_search_uniprot_no_mapping():
 @pytest.mark.vcr()
 def test_search_by_sequence_no_match():
     """Test a valid amino acid string that is highly unlikely to have a structural match."""
-    # A sequence of 50 Tryptophans (W) is biologically unlikely to be a crystallized protein
     weird_seq = "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
     
     print("\n[TEST START] -> Searching for unlikely 'WWWW...' sequence...")

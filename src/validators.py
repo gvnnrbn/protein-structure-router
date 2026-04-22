@@ -31,7 +31,7 @@ def is_amino_acid_sequence(text: str) -> bool:
     Checks if a string consists only of valid standard amino acid codes.
     """
     text = text.upper().strip()
-    if len(text) < 10: 
+    if len(text) < 15: 
         print("[VALIDATOR] Warning: Sequence is very short, may not be a valid protein sequence.")
         return False
     

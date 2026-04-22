@@ -10,7 +10,7 @@ def test_router_directs_pdb_id(mock_rcsb):
     """Test that a 4-character ID routes to RCSB PDB search."""
     mock_rcsb.return_value = "MOCKED_PDB_FILE"
     
-    result = structure_router(query_type="id", text_query="1LM5")
+    result = structure_router(query_type="text", text_query="1LM5")
     
     mock_rcsb.assert_called_once_with("1LM5")
     assert result == "MOCKED_PDB_FILE"
@@ -20,7 +20,7 @@ def test_router_directs_uniprot_id(mock_alphafold):
     """Test that a UniProt ID routes to AlphaFold search without specific fragment."""
     mock_alphafold.return_value = {"status": "multiple_choices"} 
     
-    result = structure_router(query_type="id", text_query="Q5VSL9")
+    result = structure_router(query_type="text", text_query="Q5VSL9")
     
     mock_alphafold.assert_called_once_with(uniprot_id="Q5VSL9")
     assert result == {"status": "multiple_choices"}
@@ -30,7 +30,7 @@ def test_router_extracts_and_directs_alphafold_id(mock_alphafold):
     """Test that an AF ID passes both UniProt ID and specific AF ID to fetcher."""
     mock_alphafold.return_value = "MOCKED_ALPHAFOLD_FILE"
     
-    result = structure_router(query_type="id", text_query="AF-Q5VSL9-F1")
+    result = structure_router(query_type="text", text_query="AF-Q5VSL9-F1")
     
     # Must call with both arguments
     mock_alphafold.assert_called_once_with(specific_af_id="AF-Q5VSL9-F1")
@@ -42,7 +42,7 @@ def test_router_directs_raw_sequence(mock_sequence_search):
     mock_sequence_search.return_value = "MOCKED_SEQUENCE_HIT"
     sequence = "MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVIDGETCLLD"
     
-    result = structure_router(query_type="sequence", text_query=sequence)
+    result = structure_router(query_type="text", text_query=sequence)
     
     mock_sequence_search.assert_called_once_with(sequence)
     assert result == "MOCKED_SEQUENCE_HIT"
@@ -54,7 +54,7 @@ def test_router_handles_invalid_input(mock_seq, mock_af, mock_pdb):
     """Test that invalid input returns None and triggers no APIs."""
     junk_input = "!#INVALID_INPUT123!"
     
-    result = structure_router(query_type="id", text_query=junk_input)
+    result = structure_router(query_type="text", text_query=junk_input)
     
     assert result is None
     mock_pdb.assert_not_called()

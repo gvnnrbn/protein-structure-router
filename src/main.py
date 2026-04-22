@@ -12,8 +12,7 @@ app = FastAPI()
 class AllowedQueryTypes(str, Enum):
     """Defines the only acceptable values for query_type."""
     file = "file"
-    id = "id"
-    sequence = "sequence"
+    text = "text"
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):

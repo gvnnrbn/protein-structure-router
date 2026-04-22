@@ -41,7 +41,7 @@ def structure_router(query_type: str, text_query: str = None, file_content: str 
         print("[ROUTER] Error: Unrecognized file format.")
         return None
     
-    elif query_type in ["id", "sequence"] and text_query:
+    elif query_type == "text" and text_query:
         text_query = text_query.strip()
         # ID
         if is_valid_pdb_id(text_query):

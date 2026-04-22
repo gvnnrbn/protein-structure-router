@@ -20,8 +20,8 @@ interactions:
     uri: https://search.rcsb.org/rcsbsearch/v2/query
   response:
     body:
-      string: "{\n  \"query_id\" : \"ddc74b6b-4cd4-4b68-9e94-d4045a67628d\",\n  \"result_type\"
-        : \"polymer_entity\",\n  \"total_count\" : 740,\n  \"result_set\" : [ {\n
+      string: "{\n  \"query_id\" : \"075c6e7c-58e2-4a88-bf4d-c85abbd24ee5\",\n  \"result_type\"
+        : \"polymer_entity\",\n  \"total_count\" : 757,\n  \"result_set\" : [ {\n
         \   \"identifier\" : \"4Q21_1\",\n    \"score\" : 1.0\n  }, {\n    \"identifier\"
         : \"8ELK_1\",\n    \"score\" : 0.9594594594594594\n  }, {\n    \"identifier\"
         : \"8ELR_1\",\n    \"score\" : 0.9594594594594594\n  }, {\n    \"identifier\"
@@ -40,7 +40,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Wed, 15 Apr 2026 07:35:33 GMT
+      - Wed, 22 Apr 2026 04:40:32 GMT
       strict-transport-security:
       - max-age=16000000; includeSubDomains; preload;
       transfer-encoding:
@@ -2044,16 +2044,16 @@ interactions:
       Content-Type:
       - text/plain
       Date:
-      - Wed, 15 Apr 2026 07:35:34 GMT
+      - Wed, 22 Apr 2026 04:40:33 GMT
       Transfer-Encoding:
       - chunked
       Vary:
       - accept-encoding
       - Origin
       Via:
-      - 1.1 61bf5cdcb798726dc6c606f907cc8f54.cloudfront.net (CloudFront)
+      - 1.1 8753a5890eda67f9db56cde3f25f5a28.cloudfront.net (CloudFront)
       X-Amz-Cf-Id:
-      - fguGCDNiZew-G-aRVGE_4923U2a55rbj37KXCPAxoOG_y6RTz0ydyg==
+      - tusoyzZ1DFVKGohb7j4PGv2HqPauU4IqmtoW4OIC9WQmLGLdlDLlmA==
       X-Amz-Cf-Pop:
       - LIM50-P1
       X-Cache:

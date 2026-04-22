@@ -1,4 +1,6 @@
 # Structure downloader
+from typing import Union, Dict
+
 import requests
 
 def search_rcsb_by_pdb_id(pdb_id):
@@ -78,12 +80,62 @@ def search_rcsb_by_uniprot_id(uniprot_id):
         print(f"[FETCHER] Connection Error: {e}")
         return None
 
-def search_alphafold_by_uniprot_id(uniprot_id):
+# def search_alphafold_by_uniprot_id(uniprot_id):
+#     """
+#     Queries the AlphaFold API with a UniProt ID, extracts the pdbUrl for the exact sequence, and downloads the corresponding PDB file.
+#     """
+#     api_url = f"https://alphafold.ebi.ac.uk/api/prediction/{uniprot_id}"
+    
+#     try:
+#         response_api = requests.get(api_url, headers={'accept': 'application/json'}, timeout=10)
+        
+#         if response_api.status_code == 200:
+#             data = response_api.json()
+            
+#             if not data:
+#                 print(f"[FETCHER] Error: No AlphaFold model found for {uniprot_id}")
+#                 return None
+                
+#             # Search for the exact entry (avoiding isoforms unless requested)
+#             # Default to the first one but attempt to find an exact match. 
+#             # TODO: RETURN TO USER TO PICK ISOFORM
+#             selected_model = data[0] 
+#             for entry in data:
+#                 if entry.get("uniprotAccession") == uniprot_id:
+#                     selected_model = entry
+#                     break
+                    
+#             pdb_url = selected_model.get("pdbUrl")
+            
+#             if not pdb_url:
+#                 print(f"[FETCHER] Error: No PDB URL found in AlphaFold metadata for {uniprot_id}")
+#                 return None
+                
+#             # Download PDB file
+#             response_pdb = requests.get(pdb_url, timeout=10)
+            
+#             if response_pdb.status_code == 200:
+#                 print(f" Success: AlphaFold model for {uniprot_id} downloaded.")
+#                 return response_pdb.text
+                
+#         return None
+        
+#     except requests.exceptions.RequestException as e:
+#         print(f"[FETCHER] Network Error (AlphaFold): {e}")
+#         return None
+
+def fetch_alphafold_model(uniprot_id: str = None, specific_af_id: str = None) -> Union[str, Dict]:
     """
-    Queries the AlphaFold API, extracts the pdbUrl for the exact sequence,
-    and downloads the corresponding PDB file.
+    Queries AlphaFold by UniProt ID.
+    - If a specific AF ID is requested, it downloads that exact model.
+    - If no specific AF ID is requested and there is only 1 result, it downloads it.
+    - If no specific AF ID is requested and there are MULTIPLE results, it returns a dict of options.
     """
-    api_url = f"https://alphafold.ebi.ac.uk/api/prediction/{uniprot_id}"
+    if specific_af_id:
+        id = specific_af_id    
+    else:
+        id = uniprot_id
+    api_url = f"https://alphafold.ebi.ac.uk/api/prediction/{id}"
     
     try:
         response_api = requests.get(api_url, headers={'accept': 'application/json'}, timeout=10)
@@ -92,34 +144,51 @@ def search_alphafold_by_uniprot_id(uniprot_id):
             data = response_api.json()
             
             if not data:
-                print(f"[FETCHER] Error: No AlphaFold model found for {uniprot_id}")
+                print(f"[FETCHER] Error: No AlphaFold model found for {id}")
                 return None
-                
-            # Step 2: Search for the exact entry (avoiding isoforms unless requested)
-            # Default to the first one but attempt to find an exact match. TODO: HOW TO PICK ISOFORM
-            selected_model = data[0] 
-            for entry in data:
-                if entry.get("uniprotAccession") == uniprot_id:
-                    selected_model = entry
-                    break
-                    
-            pdb_url = selected_model.get("pdbUrl")
             
-            if not pdb_url:
-                print(f"[FETCHER] Error: No PDB URL found in AlphaFold metadata for {uniprot_id}")
+            # SCENARIO 1: AF id    
+            if specific_af_id:
+                for entry in data:
+                    if entry.get("modelEntityId") == specific_af_id:
+                        return download_pdb_from_alphafold(entry.get("pdbUrl"), id)
+                        
+                print(f"[FETCHER] Error: Specific model {id} not found in AlphaFold data.")
                 return None
-                
-            # Step 3: Download the actual PDB file from the extracted URL
-            response_pdb = requests.get(pdb_url, timeout=10)
             
-            if response_pdb.status_code == 200:
-                print(f" Success: AlphaFold model for {uniprot_id} downloaded.")
-                return response_pdb.text
+            # SCENARIO 2: UniProt ID with MULTIPLE models
+            if len(data) > 1:
+                print(f"[FETCHER] Multiple models found for {id}. Prompting user selection.")
+                # We return a dictionary indicating multiple choices, NOT a PDB string
+                options = [
+                    {
+                        "af_id": entry.get("modelEntityId"), 
+                        "uniprot": entry.get("uniprotAccession"),
+                        "uniProtSequence": entry.get("uniprotSequence")
+                    } for entry in data
+                ]
+                return {"status": "multiple_choices", "options": options}
+            
+            # SCENARIO 3: The user gave a UniProt ID, and there is exactly ONE model
+            return download_pdb_from_alphafold(data[0].get("pdbUrl"), data[0].get("modelEntityId"))
                 
         return None
         
     except requests.exceptions.RequestException as e:
         print(f"[FETCHER] Network Error (AlphaFold): {e}")
+        return None
+    
+def download_pdb_from_alphafold(pdb_url: str, log_id: str) -> str:
+    if not pdb_url:
+        return None
+    try:
+        response_pdb = requests.get(pdb_url, timeout=10)
+        if response_pdb.status_code == 200:
+            print(f"[FETCHER] Success: AlphaFold model {log_id} downloaded.")
+            return response_pdb.text
+        return None
+    except requests.exceptions.RequestException as e:
+        print(f"[FETCHER] Network Error downloading PDB: {e}")
         return None
     
 ##########################################
@@ -133,7 +202,6 @@ def search_rcsb_by_sequence(sequence: str, identity_cutoff: float = 0.9):
     
     search_url = "https://search.rcsb.org/rcsbsearch/v2/query"
     
-    # Using the exact payload structure from RCSB documentation
     query_payload = {
         "query": {
             "type": "terminal",

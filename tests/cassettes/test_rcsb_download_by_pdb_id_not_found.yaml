@@ -14,50 +14,46 @@ interactions:
     uri: https://files.rcsb.org/download/0XXX.pdb
   response:
     body:
-      string: <!doctype html><html lang="en"><head><meta charset="utf-8"/><link rel="icon"
-        href="/favicon.ico"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>PDB
-        Archive over AWS</title><script defer="defer" src="/static/js/main.8d793b2b.js"></script><link
-        href="/static/css/main.858212c0.css" rel="stylesheet"></head><body><noscript>You
-        need to enable JavaScript to run this app.</noscript><div id="root"></div></body></html>
+      string: "<!DOCTYPE html>\n<html>\n<head>\n    <meta charset=\"UTF-8\">\n    <title>404
+        Not Found</title>\n    <link href=\"https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css\"
+        rel=\"stylesheet\">\n    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css\">\n
+        \   <style>\n        body { font-family: var(--bs-font-monospace); background-color:
+        #f8f9fa; }\n        .error-container { max-width: 600px; margin-top: 100px;
+        }\n        .error-code { font-size: 6rem; font-weight: bold; color: #dc3545;
+        }\n    </style>\n</head>\n<body>\n    <div class=\"container error-container
+        text-center\">\n        <div class=\"error-code\">404</div>\n        <h2 class=\"mb-4\">File
+        Not Found</h2>\n        <p class=\"lead text-muted mb-5\">\n            <i
+        class=\"bi bi-search me-2\"></i>\n            The requested file or directory
+        could not be found in the archive.\n        </p>\n        <div class=\"card
+        shadow-sm mb-4 text-start\">\n            <div class=\"card-body\">\n                <small
+        class=\"text-muted d-block mb-1\">Details:</small>\n                <code>null
+        does not exist</code>\n            </div>\n        </div>\n    </div>\n</body>\n</html>\n"
     headers:
-      Accept-Ranges:
-      - bytes
       Connection:
       - keep-alive
-      Content-Length:
-      - '441'
+      Content-Disposition:
+      - inline;filename=f.txt
+      Content-Encoding:
+      - gzip
       Content-Type:
       - text/html
       Date:
-      - Wed, 15 Apr 2026 05:39:31 GMT
-      ETag:
-      - '"fe16bd24a8c5b6c6835050aeed60fcc5"'
-      Last-Modified:
-      - Fri, 20 Jun 2025 20:52:06 GMT
-      Referrer-Policy:
-      - strict-origin-when-cross-origin
-      Server:
-      - AmazonS3
-      Strict-Transport-Security:
-      - max-age=31536000
+      - Wed, 22 Apr 2026 04:40:34 GMT
+      Transfer-Encoding:
+      - chunked
       Vary:
+      - accept-encoding
       - Origin
       Via:
-      - 1.1 c3f52c6e51c79b76b85ae5ed7c2503a6.cloudfront.net (CloudFront)
+      - 1.1 41214e21a06ae299a8c0c72752b81bac.cloudfront.net (CloudFront)
       X-Amz-Cf-Id:
-      - troFCjuQq8oTWh3sr-KOD8DEbrtuudCwIWV4QM8yOVOb-wlETxWiGg==
+      - zU9JbAE-m2C24Jbied6VUyi0kSRFIK1dUOGAWoTvUnjF3MUkdhhhbA==
       X-Amz-Cf-Pop:
       - LIM50-P1
       X-Cache:
       - Error from cloudfront
-      X-Content-Type-Options:
-      - nosniff
-      X-Frame-Options:
-      - SAMEORIGIN
-      X-XSS-Protection:
-      - 1; mode=block
-      x-amz-server-side-encryption:
-      - AES256
+      strict-transport-security:
+      - max-age=16000000; includeSubDomains; preload;
     status:
       code: 404
       message: Not Found

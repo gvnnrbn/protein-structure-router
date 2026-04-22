@@ -1,24 +1,54 @@
-from src.converters import (
-    clean_pdb_text,
+from src.validators import (
+    is_valid_pdb_id,
+    is_valid_uniprot_accession,
+    is_valid_alphafold_id,
+    is_fasta_format,
+    is_pdb_format,
+    is_mmcif_format
 )
 
-def test_pdb_format_cleaner():
-    dirty_pdb = (
-        "\\nATOM      1  N   SER A2616      26.160  -7.962  45.517  1.00 36.86           N\n"
-        "\\ \\nATOM      2  CA  SER A2616      27.344  -8.170  44.641  1.00 35.30           C\n"
-        "\\ \\nATOM      3  C   SER A2616      27.115  -7.607  43.248  1.00 33.78           C\n"
-        "\\  ADDITIONAL TEXT\n"
-        "\\ \\nTER       4      SER A2616\n"
-    )
+#########################################################
+#       FILE FORMAT VALIDATORS
+#######################################################
+def test_is_fasta_format():
+    valid_fasta = ">Header details\nMTEYKLVVVG"
+    invalid_fasta = "MTEYKLVVVG\nNo header"
     
-    clean_pdb = clean_pdb_text(dirty_pdb)
+    assert is_fasta_format(valid_fasta) is True
+    assert is_fasta_format(invalid_fasta) is False
+
+def test_is_pdb_format():
+    valid_pdb = "HEADER    STRUCTURAL PROTEIN\nATOM      1  N"
+    invalid_pdb = "Just some random text\nATOM"
     
-    assert "ADDITIONAL TEXT" not in clean_pdb
-    assert "\\" not in clean_pdb
+    assert is_pdb_format(valid_pdb) is True
+    assert is_pdb_format(invalid_pdb) is False
+
+def test_is_mmcif_format():
+    valid_cif = "data_1XYZ\n#\nloop_\n_atom_site.group_PDB"
     
-    lines = clean_pdb.strip().split('\n')
-    assert lines[0].startswith("ATOM")
-    assert lines[1].startswith("ATOM")
-    assert lines[-1].startswith("TER")
+    assert is_mmcif_format(valid_cif) is True
+    assert is_mmcif_format("HEADER PDB FILE") is False
+
+#########################################################
+#       ID VALIDATORS
+#######################################################
+def test_is_valid_pdb_id():
+    # Legacy format tests
+    assert is_valid_pdb_id("1LM5") is True
+    assert is_valid_pdb_id("9XYZ") is True
     
-    assert len(lines[0]) > 50
+    # 2028 Extended format tests
+    assert is_valid_pdb_id("pdb_1000axyz") is True
+    assert is_valid_pdb_id("PDB_1000AXYZ") is True  
+    # Invalid format tests
+    assert is_valid_pdb_id("P159") is False      
+    assert is_valid_pdb_id("pdb_123") is False    
+    assert is_valid_pdb_id("0ABC") is False      
+
+def test_is_valid_uniprot_accession():
+    assert is_valid_uniprot_accession("P15924") is True
+    assert is_valid_uniprot_accession("p15924") is True      
+    assert is_valid_uniprot_accession("A0A024RBG1") is True
+    assert is_valid_uniprot_accession("P15924-2") is True   
+    assert is_valid_uniprot_accession("INVALID") is False

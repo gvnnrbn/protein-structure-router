@@ -54,7 +54,7 @@ def clean_pdb_text(dirty_text):
     Takes a dirty PDB string (with literal \\n and escape \\) 
     and converts it into a strict, valid PDB format.
     """
-    # 1. Replace literal '\n' (text) with actual newlines
+    # Replace literal '\n' (text) with actual newlines
     if '\\n' in dirty_text:
         dirty_text = dirty_text.replace('\\n', '\n')
         
@@ -69,10 +69,10 @@ def clean_pdb_text(dirty_text):
     )
     
     for line in dirty_text.split('\n'):
-        # 2. Strip backslashes '\' and spaces from the START of the line.
+        # Strip backslashes '\' and spaces from the START of the line.
         trimmed_line = re.sub(r'^[\s\\]+', '', line)
         
-        # 3. Filter: If the line starts with a valid keyword, we keep it
+        # Filter: If the line starts with a valid keyword, we keep it
         if trimmed_line.startswith(valid_keywords):
             clean_lines.append(trimmed_line)
             

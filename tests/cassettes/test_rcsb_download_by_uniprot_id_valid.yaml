@@ -23,7 +23,7 @@ interactions:
     uri: https://search.rcsb.org/rcsbsearch/v2/query
   response:
     body:
-      string: "{\n  \"query_id\" : \"3972ce07-2cff-402e-956d-2641594a0c6a\",\n  \"result_type\"
+      string: "{\n  \"query_id\" : \"f5e1a9e0-0352-4468-9162-6cd84ed95cd9\",\n  \"result_type\"
         : \"polymer_entity\",\n  \"total_count\" : 5,\n  \"result_set\" : [ {\n    \"identifier\"
         : \"1LM5_1\",\n    \"score\" : 1.0\n  }, {\n    \"identifier\" : \"1LM7_1\",\n
         \   \"score\" : 1.0\n  }, {\n    \"identifier\" : \"3R6N_1\",\n    \"score\"
@@ -37,7 +37,7 @@ interactions:
       content-type:
       - application/json
       date:
-      - Wed, 15 Apr 2026 03:49:31 GMT
+      - Wed, 22 Apr 2026 04:40:28 GMT
       strict-transport-security:
       - max-age=16000000; includeSubDomains; preload;
       transfer-encoding:
@@ -3687,16 +3687,16 @@ interactions:
       Content-Type:
       - text/plain
       Date:
-      - Wed, 15 Apr 2026 03:49:32 GMT
+      - Wed, 22 Apr 2026 04:40:30 GMT
       Transfer-Encoding:
       - chunked
       Vary:
       - accept-encoding
       - Origin
       Via:
-      - 1.1 397871ae913f1796ba76aca08571de36.cloudfront.net (CloudFront)
+      - 1.1 1363962ebe43751f885359ece2e8196a.cloudfront.net (CloudFront)
       X-Amz-Cf-Id:
-      - Au_z3MPHYQhnxGzfhyhBrA7OaGycpRZHqlikQ8w0TGtSOpPHeVM8FA==
+      - fvnOv80yeAdxfxWj_tvKIj4pBAdIAfAXJnE2NRKzPRd453HFvFcfFg==
       X-Amz-Cf-Pop:
       - LIM50-P1
       X-Cache:

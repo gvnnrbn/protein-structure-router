@@ -50,7 +50,7 @@ async def process_request(
     """
     
     # text query cannot be empty
-    if query_type in [AllowedQueryTypes.id, AllowedQueryTypes.sequence]:
+    if query_type == AllowedQueryTypes.text:
         if not text_query or text_query.strip() == "":
             return JSONResponse(
                 status_code=400,

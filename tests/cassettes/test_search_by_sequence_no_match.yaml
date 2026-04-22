@@ -1,0 +1,40 @@
+interactions:
+- request:
+    body: '{"query": {"type": "terminal", "service": "sequence", "parameters": {"evalue_cutoff":
+      1, "identity_cutoff": 0.99, "sequence_type": "protein", "value": "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"}},
+      "request_options": {"scoring_strategy": "sequence"}, "return_type": "polymer_entity"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate, zstd
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '292'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.33.1
+    method: POST
+    uri: https://search.rcsb.org/rcsbsearch/v2/query
+  response:
+    body:
+      string: ''
+    headers:
+      alt-svc:
+      - h3=":443";ma=60;
+      content-type:
+      - application/json
+      date:
+      - Wed, 22 Apr 2026 05:49:15 GMT
+      strict-transport-security:
+      - max-age=16000000; includeSubDomains; preload;
+      vary:
+      - Origin
+      - Access-Control-Request-Method
+      - Access-Control-Request-Headers
+    status:
+      code: 204
+      message: No Content
+version: 1

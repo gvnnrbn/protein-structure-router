@@ -50,10 +50,13 @@ def is_pdb_format(text: str) -> bool:
     """
     Checks if the text is a PDB file.
     """
-    return bool(re.search(r'^(HEADER|ATOM  |COMPND|REMARK)', text.strip(), re.MULTILINE))
+    headers = ('HEADER', 'TITLE', 'REMARK', 'CRYST1')
+    return any(text.startswith(h) for h in headers) or 'ATOM  ' in text
+    # return bool(re.search(r'^(HEADER|ATOM  |COMPND|REMARK)', text.strip(), re.MULTILINE))
 
 def is_mmcif_format(text: str) -> bool:
     """
-    Checks if the text is an mmCIF file.
+    Checks if the text is an mmCIF file. mmCIF files must start with 'data_' and contain 'loop_'
     """
-    return 'data_' in text and 'loop_' in text
+    clean_text = text.strip()
+    return clean_text.startswith('data_') and 'loop_' in clean_text

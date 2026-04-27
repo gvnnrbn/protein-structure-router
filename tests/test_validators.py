@@ -25,7 +25,7 @@ def test_is_pdb_format():
     assert is_pdb_format(invalid_pdb) is False
 
 def test_is_mmcif_format():
-    valid_cif = "data_1XYZ\n#\nloop_\n_atom_site.group_PDB"
+    valid_cif = "data_3M07\n#\_entry.id   3M07 \nloop_"
     
     assert is_mmcif_format(valid_cif) is True
     assert is_mmcif_format("HEADER PDB FILE") is False
@@ -45,6 +45,10 @@ def test_is_valid_pdb_id():
     assert is_valid_pdb_id("P159") is False      
     assert is_valid_pdb_id("pdb_123") is False    
     assert is_valid_pdb_id("0ABC") is False      
+
+def test_is_valid_alphafold_id():
+    assert is_valid_alphafold_id("AF-Q5VSL9-F1") is True
+    assert is_valid_alphafold_id("AF-P15924") is False
 
 def test_is_valid_uniprot_accession():
     assert is_valid_uniprot_accession("P15924") is True

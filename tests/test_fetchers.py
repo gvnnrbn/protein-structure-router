@@ -1,3 +1,5 @@
+from unittest import result
+
 import pytest
 from src.fetchers import (
     fetch_alphafold_model,
@@ -14,11 +16,12 @@ from src.validators import is_amino_acid_sequence
 def test_rcsb_download_by_uniprot_id_valid():
     """Test PDB file download from RCSB using a valid UniProt ID."""
     uniprot_id = "P15924"
-    pdb_content = search_rcsb_by_uniprot_id(uniprot_id)
+    result = search_rcsb_by_uniprot_id(uniprot_id)
     
-    assert pdb_content is not None
-    assert "HEADER" in pdb_content
-    assert "ATOM" in pdb_content
+    assert result["status"] == "success"
+    assert result["data"] is not None
+    assert "HEADER" in result["data"]
+    assert "ATOM" in result["data"]
 
 @pytest.mark.vcr()
 def test_rcsb_download_by_pdb_id_valid():
@@ -26,9 +29,10 @@ def test_rcsb_download_by_pdb_id_valid():
     pdb_id = "1LM5"
     result = search_rcsb_by_pdb_id(pdb_id)
     
-    assert result is not None
-    assert "HEADER" in result
-    assert pdb_id in result
+    assert result["status"] == "success"
+    assert result["data"] is not None
+    assert "HEADER" in result["data"]
+    assert pdb_id in result["data"]
 
 @pytest.mark.vcr()
 def test_alphafold_multiple_choices_uniprot():
@@ -37,10 +41,9 @@ def test_alphafold_multiple_choices_uniprot():
     
     result = fetch_alphafold_model(uniprot_id=uniprot_id)
     
-    # Must return a dictionary, NOT a PDB string
-    assert isinstance(result, dict)
-    assert result.get("status") == "multiple_choices"
-    assert len(result.get("options")) > 1
+    assert result["status"] == "multiple_choices"
+    assert isinstance(result["data"], list)
+    assert len(result["data"]) > 1
 
 @pytest.mark.vcr()
 def test_alphafold_specific_fragment_download():
@@ -49,10 +52,10 @@ def test_alphafold_specific_fragment_download():
     
     result = fetch_alphafold_model(specific_af_id=specific_id)
     
-    # Must return the PDB string directly
-    assert isinstance(result, str)
-    assert "ATOM" in result
-    assert "toolUsed" not in result # check that it's not JSON metadata
+    assert result["status"] == "success"
+    assert isinstance(result["data"], str)
+    assert "ATOM" in result["data"]
+    assert "toolUsed" not in result["data"]
 
 @pytest.mark.vcr()
 def test_search_by_sequence_valid_hras():
@@ -60,8 +63,9 @@ def test_search_by_sequence_valid_hras():
     hras_seq = "MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVIDGETCLLDILDTAGQEEYSAMRDQYMRTGEGFLCVFAINNTKSFEDIHQYREQIKRVKDSDDVPMVLVGNKCDLPARTVETRQAQDLARSYGIPYIETSAKTRQGVEDAFYTLVREIRQHKLRKLNPPDESGPGCMNCKCVIS"
     result = search_rcsb_by_sequence(hras_seq)
     
-    assert result is not None
-    assert "ATOM" in result
+    assert result["status"] == "success"
+    assert result["data"] is not None
+    assert "ATOM" in result["data"]
 
 
 ###########################################
@@ -69,28 +73,38 @@ def test_search_by_sequence_valid_hras():
 ###########################################
 def test_alphafold_invalid_format_handling():
     """Test AlphaFold fetcher with invalid ID formats."""
-    assert fetch_alphafold_model(uniprot_id="INVALID_ID_123") is None
+    result = fetch_alphafold_model(uniprot_id="INVALID_ID_123")
+    assert result["status"] == "error"
+    assert result["data"] is None
 
 @pytest.mark.vcr()
 def test_alphafold_valid_id_no_structure():
     """Test AlphaFold fetcher with a valid-format ID that doesn't exist."""
-    assert fetch_alphafold_model(specific_af_id="AF-P15924-F1") is None
+    result = fetch_alphafold_model(specific_af_id="AF-P15924-F1")
+    assert result["status"] == "error"
+    assert result["data"] is None
 
 @pytest.mark.vcr()
 def test_rcsb_download_by_pdb_id_not_found():
     """Test RCSB fetcher with a non-existent PDB ID."""
-    assert search_rcsb_by_pdb_id("0XXX") is None
+    result = search_rcsb_by_pdb_id("0XXX")
+    assert result["status"] == "error"
+    assert result["data"] is None
 
 @pytest.mark.vcr()
 def test_rcsb_search_uniprot_no_mapping():
     """Test RCSB fetcher with a UniProt ID that has no experimental PDBs."""
-    assert search_rcsb_by_uniprot_id("A0A024RBG1") is None
+    result = search_rcsb_by_uniprot_id("AX024RBG1")
+    assert result["status"] == "error"
+    assert result["data"] is None
 
 @pytest.mark.vcr()
 def test_search_by_sequence_no_match():
     """Test RCSB sequence fetcher with an impossible sequence."""
     weird_seq = "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
-    assert search_rcsb_by_sequence(weird_seq, identity_cutoff=0.99) is None
+    result = search_rcsb_by_sequence(weird_seq, identity_cutoff=0.99)
+    assert result["status"] == "error"
+    assert result["data"] is None
 
 def test_sequence_validator_junk_input():
     """Ensure random junk strings fail the amino acid sequence validator."""

@@ -43,38 +43,29 @@ def convert_mmcif_to_pdb(mmcif_content: str) -> str:
         mmcif_file_handle.close()
         pdb_file_handle.close()
         
-        return pdb_text
+        return {"status": "success", "data": pdb_text, "message": None}
 
     except Exception as e:
-        print(f"[CONVERTER] Error converting mmCIF to PDB: {e}")
-        return None
+        err_msg = f"Error converting mmCIF to PDB: {e}"
+        print(f"[CONVERTER]: {err_msg}")
+        return {"status": "error", "data": None, "message": err_msg}
 
-def clean_pdb_text(dirty_text):
-    """
-    Takes a dirty PDB string (with literal \\n and escape \\) 
-    and converts it into a strict, valid PDB format.
-    """
-    # Replace literal '\n' (text) with actual newlines
+def clean_pdb_text(dirty_text: str) -> str:
     if '\\n' in dirty_text:
         dirty_text = dirty_text.replace('\\n', '\n')
         
     clean_lines = []
-    
-    # Valid PDB keywords (Record Types) to keep: ATOM, HETATM, TER, and END.
-    valid_keywords = (
-        'HEADER', 'TITLE', 'COMPND', 'SOURCE', 'KEYWDS', 'EXPDTA', 
-        'AUTHOR', 'REVDAT', 'JRNL', 'REMARK', 'DBREF', 'SEQRES', 
-        'FORMUL', 'HELIX', 'SHEET', 'CRYST1', 'ORIGX', 'SCALE', 
-        'ATOM', 'HETATM', 'TER', 'END', 'MASTER'
-    )
+    is_capturing = False
     
     for line in dirty_text.split('\n'):
-        # Strip backslashes '\' and spaces from the START of the line.
         trimmed_line = re.sub(r'^[\s\\]+', '', line)
         
-        # Filter: If the line starts with a valid keyword, we keep it
-        if trimmed_line.startswith(valid_keywords):
-            clean_lines.append(trimmed_line)
+        if not is_capturing and trimmed_line.startswith('ATOM'):
+            is_capturing = True
             
-    # Join everything with clean newlines
-    return '\n'.join(clean_lines) + '\n'
+        if is_capturing:
+            clean_lines.append(trimmed_line)
+            if trimmed_line.startswith('TER'):
+                break
+                
+    return '\n'.join(clean_lines) + '\n' if clean_lines else ''

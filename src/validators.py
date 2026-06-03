@@ -23,7 +23,7 @@ def is_valid_alphafold_id(af_id: str) -> bool:
     """
     Format: AF-<UniProtAC>-F<ModelVersion>
     """
-    pattern = r'^AF-[A-Z0-9]{6,10}-F[0-9]+$'
+    pattern = r'^AF-[A-Z0-9]{6,10}(?:-[0-9]+)?-F[0-9]+$'
     return bool(re.match(pattern, af_id))
 
 def is_amino_acid_sequence(text: str) -> bool:
@@ -52,7 +52,6 @@ def is_pdb_format(text: str) -> bool:
     """
     headers = ('HEADER', 'TITLE', 'REMARK', 'CRYST1')
     return any(text.startswith(h) for h in headers) or 'ATOM  ' in text
-    # return bool(re.search(r'^(HEADER|ATOM  |COMPND|REMARK)', text.strip(), re.MULTILINE))
 
 def is_mmcif_format(text: str) -> bool:
     """

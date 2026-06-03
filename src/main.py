@@ -1,11 +1,26 @@
 from fastapi import FastAPI, Form, File, UploadFile, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+
 
 from src.router import structure_router
 from src.converters import clean_pdb_text
+from src.tapo_runner import run_tapo_analysis
 
 app = FastAPI()
+origins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,            # Allows specific origins
+    allow_credentials=True,           # Allows cookies and auth headers
+    allow_methods=["*"],              # Allows all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"],              # Allows all request headers
+)
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -32,7 +47,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         }
     )
 
-def _handle_router_response(result: dict, chain_id: str):
+async def _handle_router_response(result: dict, chain_id: str):
     """Helper function to DRY up the response logic for both endpoints."""
     if result["status"] == "error":
         return JSONResponse(
@@ -46,6 +61,7 @@ def _handle_router_response(result: dict, chain_id: str):
         
     # Handle Multiple Options from AlphaFold
     if result["status"] == "multiple_choices":
+        print("[BACKEND] Multiple choices found. Returning options to frontend.")
         return {
             "status": "multiple_choices",
             "input_format": result["format"],
@@ -55,13 +71,18 @@ def _handle_router_response(result: dict, chain_id: str):
         }
         
     # Handle returned PDB string
+    print("[BACKEND] Unique PDB found. Sending to TAPO...")
     final_pdb = clean_pdb_text(result["data"])
+
+    # TAPO mock
+    repeats_data = await run_tapo_analysis(final_pdb)
     
     return {
         "status": "success",
         "input_format": result["format"],
         "chain_id": chain_id.upper(),
-        "pdb_preview": final_pdb[:300] + "..." 
+        "repeats": repeats_data,
+        "pdb_found": final_pdb,
     }
 
 # ---------------------------------------------------------
@@ -75,7 +96,7 @@ async def process_text_request(
     """Handles ID and Sequence queries."""
     result_dict = structure_router("text", text_query=text_query)
     
-    return _handle_router_response(result_dict, chain_id)
+    return await _handle_router_response(result_dict, chain_id)
 
 # ---------------------------------------------------------
 # ENDPOINT 2: FILE UPLOAD ONLY
@@ -91,4 +112,4 @@ async def process_file_request(
     
     result_dict = structure_router("file", file_content=file_content)
     
-    return _handle_router_response(result_dict, chain_id)
+    return await _handle_router_response(result_dict, chain_id)

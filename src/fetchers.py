@@ -125,6 +125,7 @@ def fetch_alphafold_model(uniprot_id: str = None, specific_af_id: str = None) ->
                     {
                         "af_id": entry.get("modelEntityId"), 
                         "uniprot": entry.get("uniprotAccession"),
+                        "length": entry.get("uniprotEnd"),
                         "uniProtSequence": entry.get("uniprotSequence")
                     } for entry in data
                 ]

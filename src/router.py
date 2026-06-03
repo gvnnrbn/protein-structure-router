@@ -23,6 +23,7 @@ def structure_router(query_type: str, text_query: str = None, file_content: str 
             print("[ROUTER] mmCIF file detected. Converting to PDB...")
             result = convert_mmcif_to_pdb(file_content)
             result["format"] = "mmCIF"
+            result["status"] = "success"
             return result
         
         # PDB file: pass it straight through
@@ -44,6 +45,7 @@ def structure_router(query_type: str, text_query: str = None, file_content: str 
             if raw_sequence and is_amino_acid_sequence(raw_sequence):
                 result = search_rcsb_by_sequence(raw_sequence)
                 result["format"] = "FASTA"
+                result["status"] = "success"
                 return result
             else:
                 err_msg = "FASTA contained invalid amino acids or was too short"
@@ -59,11 +61,13 @@ def structure_router(query_type: str, text_query: str = None, file_content: str 
         if is_valid_pdb_id(text_query):
             result = search_rcsb_by_pdb_id(text_query)
             result["format"] = "PDB ID"
+            result["status"] = "success"
             return result
         
         if is_valid_alphafold_id(text_query):
             result = fetch_alphafold_model(specific_af_id=text_query)
             result["format"] = "AlphaFold ID"
+            result["status"] = "success"
             return result
         
         if is_valid_uniprot_accession(text_query):

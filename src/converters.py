@@ -1,4 +1,3 @@
-# Convert structure files into acceptable detector input
 import io
 import re
 from Bio.PDB.MMCIFParser import MMCIFParser
@@ -10,7 +9,6 @@ def parse_fasta_to_sequence(fasta_content: str) -> str:
     
     for line in lines:
         clean_line = line.strip()
-        # Ignore empty lines and header lines
         if not clean_line or clean_line.startswith('>'):
             continue
         sequence_blocks.append(clean_line)
@@ -59,13 +57,13 @@ def clean_pdb_text(dirty_text: str) -> str:
     
     for line in dirty_text.split('\n'):
         trimmed_line = re.sub(r'^[\s\\]+', '', line)
-        
-        if not is_capturing and trimmed_line.startswith('ATOM'):
-            is_capturing = True
+        clean_lines.append(trimmed_line)
+        # if not is_capturing and trimmed_line.startswith('ATOM'):
+        #     is_capturing = True
             
-        if is_capturing:
-            clean_lines.append(trimmed_line)
-            if trimmed_line.startswith('TER'):
-                break
+        # if is_capturing:
+            # clean_lines.append(trimmed_line)
+        #     if trimmed_line.startswith('TER'):
+        #         break
                 
     return '\n'.join(clean_lines) + '\n' if clean_lines else ''

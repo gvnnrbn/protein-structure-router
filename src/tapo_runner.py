@@ -3,11 +3,10 @@ import asyncio
 
 async def run_tapo_analysis(pdb_content: str):
     """
-    Mock que simula la ejecución de TAPO.
-    Recibe el string del PDB limpio y devuelve el arreglo de repeticiones.
+    Receives clean PDB content and returns the array of repeats.
     """
     print("[TAPO MOCK] Processing...")
-    await asyncio.sleep(1.5)
+    await asyncio.sleep(1)
     
     
     return [

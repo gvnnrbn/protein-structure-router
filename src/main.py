@@ -76,7 +76,7 @@ async def _handle_router_response(result: dict, chain_id: str):
 
     # TAPO mock
     repeats_data = await run_tapo_analysis(final_pdb)
-    
+    print("[BACKEND] Returning detector data...")
     return {
         "status": "success",
         "input_format": result["format"],

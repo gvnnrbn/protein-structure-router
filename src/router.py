@@ -12,9 +12,9 @@ from src.fetchers import (
     fetch_alphafold_model,
     search_rcsb_by_sequence
 )
-from src.converters import parse_fasta_to_sequence, convert_mmcif_to_pdb
+from src.converters import parse_fasta_to_sequence, convert_mmcif_to_pdb, extract_pdb_metadata
 
-def structure_router(query_type: str, text_query: str = None, file_content: str = None):
+def structure_router(query_type: str, text_query: str = None, file_content: str = None, chain_id: str = "A") -> dict:
     if query_type == "file" and file_content:
         file_content = file_content.strip()
         
@@ -24,17 +24,18 @@ def structure_router(query_type: str, text_query: str = None, file_content: str 
             result = convert_mmcif_to_pdb(file_content)
             result["format"] = "mmCIF"
             result["status"] = "success"
-            return result
+            return extract_pdb_metadata(result, chain_id)
         
         # PDB file: pass it straight through
         if is_pdb_format(file_content):
             print("[ROUTER] PDB file detected. Passing through.")
-            return {
+            result = {
                 "status": "success", 
                 "data": file_content, 
                 "message": None, 
                 "format": "PDB"
             }
+            return extract_pdb_metadata(result, chain_id)
             
         
             
@@ -46,7 +47,7 @@ def structure_router(query_type: str, text_query: str = None, file_content: str 
                 result = search_rcsb_by_sequence(raw_sequence)
                 result["format"] = "FASTA"
                 result["status"] = "success"
-                return result
+                return extract_pdb_metadata(result, chain_id)
             else:
                 err_msg = "FASTA contained invalid amino acids or was too short"
                 print(f"[ROUTER] Error: {err_msg}")
@@ -62,24 +63,24 @@ def structure_router(query_type: str, text_query: str = None, file_content: str 
             result = search_rcsb_by_pdb_id(text_query)
             result["format"] = "PDB ID"
             result["status"] = "success"
-            return result
+            return extract_pdb_metadata(result, chain_id)
         
         if is_valid_alphafold_id(text_query):
             result = fetch_alphafold_model(specific_af_id=text_query)
             result["format"] = "AlphaFold ID"
             result["status"] = "success"
-            return result
+            return extract_pdb_metadata(result, chain_id)
         
         if is_valid_uniprot_accession(text_query):
             result = fetch_alphafold_model(uniprot_id=text_query)
             result["format"] = "Uniprot Accession"
-            return result
+            return extract_pdb_metadata(result, chain_id)
         
         # SEQUENCE
         if is_amino_acid_sequence(text_query):
             result = search_rcsb_by_sequence(text_query)
             result["format"] = "Sequence"
-            return result
+            return extract_pdb_metadata(result, chain_id)
         
         err_msg = "Unrecognized text format."
         print(f"[ROUTER] Error: {err_msg}")

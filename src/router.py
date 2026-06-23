@@ -16,6 +16,7 @@ from src.converters import parse_fasta_to_sequence, convert_mmcif_to_pdb, extrac
 
 def structure_router(query_type: str, text_query: str = None, file_content: str = None, chain_id: str = "A") -> dict:
     if query_type == "file" and file_content:
+        print("[ROUTER] File upload detected. Processing...")
         file_content = file_content.strip()
         
         # mmCIF file: convert it to PDB format
@@ -57,29 +58,41 @@ def structure_router(query_type: str, text_query: str = None, file_content: str 
         return {"status": "error", "data": None, "message": err_msg, "format": "Unknown"}
     
     elif query_type == "text" and text_query:
+        print("[ROUTER] Text query detected. Processing...")
         text_query = text_query.strip()
         # ID
         if is_valid_pdb_id(text_query):
+            print("[ROUTER] PDB ID detected. Fetching structure...")
             result = search_rcsb_by_pdb_id(text_query)
             result["format"] = "PDB ID"
-            result["status"] = "success"
+            if result["status"] == "error":
+                return result
             return extract_pdb_metadata(result, chain_id)
         
         if is_valid_alphafold_id(text_query):
+            print("[ROUTER] AlphaFold ID detected. Fetching structure...")
             result = fetch_alphafold_model(specific_af_id=text_query)
             result["format"] = "AlphaFold ID"
-            result["status"] = "success"
+            if result["status"] == "error":
+                return result
             return extract_pdb_metadata(result, chain_id)
         
         if is_valid_uniprot_accession(text_query):
+            print("[ROUTER] Uniprot Accession detected. Fetching AlphaFold model...")
             result = fetch_alphafold_model(uniprot_id=text_query)
             result["format"] = "Uniprot Accession"
+            if result["status"] == "error":
+                return result
+
             return extract_pdb_metadata(result, chain_id)
         
         # SEQUENCE
         if is_amino_acid_sequence(text_query):
+            print("[ROUTER] Amino acid sequence detected. Searching for matching PDB structures...")
             result = search_rcsb_by_sequence(text_query)
             result["format"] = "Sequence"
+            if result["status"] == "error":
+                return result
             return extract_pdb_metadata(result, chain_id)
         
         err_msg = "Unrecognized text format."

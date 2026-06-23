@@ -121,7 +121,7 @@ def extract_pdb_metadata(result: dict, chain_id: str) -> dict:
                 candidate = parts[-1]
                 if is_valid_pdb_id(candidate):
                     protein_id = candidate
-                    id_type = "pdbid"
+                    id_type = "pdb"
                     break
         elif line.startswith("DBREF"):
             # DBREF suele tener el PDBid al inicio y la referencia Uniprot (UNP) en las columnas siguientes
@@ -142,7 +142,7 @@ def extract_pdb_metadata(result: dict, chain_id: str) -> dict:
                     break
                 elif is_valid_pdb_id(clean_word):
                     protein_id = clean_word
-                    id_type = "pdbid"
+                    id_type = "pdb"
                     break
                     
         if protein_id:

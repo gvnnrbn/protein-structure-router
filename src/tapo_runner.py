@@ -16,16 +16,19 @@ def get_contrasting_color(base_rgb: tuple, unit_index: int):
     Generates a derived color by darkening the base color based on the unit index.
     unit_index 0 = base color. unit_index 1 = 20% darker, etc.
     """
-    factor = 1.0 - (unit_index * 0.20)
-    # Prevents the color from becoming completely black
-    factor = max(0.4, factor) 
+    color_palette = [
+        ("#F57600", {"r": 245, "g": 118, "b": 0}),
+        ("#89CE00", {"r": 137, "g": 206, "b": 0}),
+        ("#FF007D", {"r": 255, "g": 0,   "b": 125}),
+        ("#F5CC00", {"r": 245, "g": 204, "b": 0}),
+        ("#0174E6", {"r": 1,   "g": 116, "b": 230}),
+        ("#B3C7F7", {"r": 179, "g": 199, "b": 247})
+    ]
     
-    r = int(base_rgb[0] * factor)
-    g = int(base_rgb[1] * factor)
-    b = int(base_rgb[2] * factor)
+    # cycles through the palette if repetitions exceed its size
+    selected_color = color_palette[unit_index % len(color_palette)]
     
-    hex_color = f"#{r:02x}{g:02x}{b:02x}"
-    return hex_color, {"r": r, "g": g, "b": b}
+    return selected_color[0], selected_color[1]
 
 
 def parse_tapo_text(raw_text: str) -> list:
@@ -80,7 +83,7 @@ def parse_tapo_text(raw_text: str) -> list:
                 units.append({
                     "start": start_pos,
                     "end": end_pos,
-                    "desc": f"Cluster {cluster_count} - Unit {unit_idx + 1}",
+                    "desc": f"Unit {unit_idx + 1}",
                     "hex": hex_c,
                     "rgb": rgb_c
                 })
@@ -90,7 +93,7 @@ def parse_tapo_text(raw_text: str) -> list:
         
     return clusters_data
 
-async def run_tapo_analysis(pdb_content: str, target_chain: str, protein_id: str, timeout_seconds: int = 120):
+async def run_tapo_analysis(pdb_content: str, target_chain: str, protein_id: str, timeout_seconds: int = 240):
     """
     Executes the TAPO Docker container asynchronously with safety limits.
     Includes Docker resource constraints and asyncio timeouts to prevent host freezes.

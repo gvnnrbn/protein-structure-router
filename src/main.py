@@ -13,19 +13,16 @@ import json
 import os
 
 app = FastAPI()
-origins = [
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:8000",    
-    "http://localhost:8000",
-]
+
+_frontend_url = os.environ.get("FRONTEND_URL")
+origins = [_frontend_url] if _frontend_url else ["*"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,            # Allows specific origins
-    allow_credentials=True,           # Allows cookies and auth headers
-    allow_methods=["*"],              # Allows all HTTP methods (GET, POST, etc.)
-    allow_headers=["*"],              # Allows all request headers
+    allow_origins=origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.exception_handler(RequestValidationError)

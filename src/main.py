@@ -5,12 +5,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 
 from src.router import structure_router
-from src.converters import clean_pdb_text, get_chains_from_pdb
 from src.tapo_runner import run_tapo_analysis
 import asyncio
 
-import json
-import os
+from pydantic import BaseModel
+from typing import Optional
+import requests
 
 app = FastAPI()
 origins = [
@@ -28,129 +28,157 @@ app.add_middleware(
     allow_headers=["*"],              # Allows all request headers
 )
 
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    error_messages = []
-    for err in exc.errors():
-        field = err["loc"][-1] if len(err["loc"]) > 0 else "unknown"
-        msg = err["msg"]
-        
-        if field == "chain_id":
-            error_messages.append("The chain identifier (chain_id) is required and must be a single alphanumeric character.")
-        elif field == "file_upload":
-            error_messages.append("You must upload a valid file.")
-        elif field == "text_query":
-            error_messages.append("You must provide text to search.")
-        else:
-            error_messages.append(f"Error in '{field}': {msg}")
-
-    return JSONResponse(
-        status_code=400,
-        content={
-            "status": "error",
-            "message": "Invalid form data.",
-            "details": error_messages
-        }
-    )
-
-async def _handle_router_response(result: dict, chain_id: str):
-    """Helper function to DRY up the response logic for both endpoints."""
-
-    if result["status"] == "error":
-        return JSONResponse(
-            status_code=404,
-            content={
-                "status": "error",
-                "input_format": result["format"],
-                "message": result["message"]
-            }
-        )
-        
-    # Handle Multiple Options from AlphaFold
-    if result["status"] == "multiple_choices":
-        print("[BACKEND] Multiple choices found. Returning options to frontend.")
-        return {
-            "status": "multiple_choices",
-            "input_format": result["format"],
-            "message": "Multiple models found.",
-            "chain_id": chain_id.upper(), 
-            "options": result["data"]
-        }
-        
-    # Handle returned PDB string
-    print("[BACKEND] Unique PDB found. Sending to TAPO...")
-    final_pdb = clean_pdb_text(result["data"])
+class DetectRepeatsRequest(BaseModel):
+    # Metadata
+    protein_id: str
+    id_type: str
+    input_format: str
     
-    # 1. Determine which physical chains to process
-    target_chains = []
-    if chain_id.upper() == "ALL":
-        target_chains = get_chains_from_pdb(final_pdb)
-        # Fallback in case BioPython fails to find chains
-        if not target_chains:
-            target_chains = ["A"] 
-    else:
-        target_chains = [chain_id.upper()]
-        
-    # 2. ASYNC ORCHESTRATION: Trigger TAPO containers for all target chains simultaneously
-    tasks = [run_tapo_analysis(final_pdb, ch,result["protein_id"]) for ch in target_chains]
-    tapo_results = await asyncio.gather(*tasks)
-
-    # 3. Aggregation: Map the output JSON from each container to its respective chain ID
-    repeats_by_chain = {ch: res for ch, res in zip(target_chains, tapo_results)}
+    # Specific choice properties
+    choice_type: str  # "chains" or "alphafold_models"
+    chain_id: str
+    sequence: str
+    length: int
     
-    # 4. Construct Final Response Payload
-    if chain_id.upper() != "ALL":
-        response_payload = {
-            "status": "success",
-            "input_format": result["format"],
-            "protein_id": result["protein_id"],
-            "id_type": result["id_type"],
-            "chain_id": chain_id.upper(),
-            "sequence": result["sequence"],
-            "length": result["length"],
-            "repeats": repeats_by_chain[chain_id.upper()],
-            "pdb_found": final_pdb
-        }
-    else:
-        response_payload = {
-            "status": "success",
-            "input_format": result["format"],
-            "protein_id": result["protein_id"],
-            "id_type": result["id_type"],
-            "length": result["length"],
-            "repeats": repeats_by_chain[chain_id.upper()],
-            "chain_id": "ALL",
-            "chains_data": repeats_by_chain, 
-            "pdb_found": final_pdb
-        }
-    return response_payload
-        
+    # Payload depending on choice_type
+    pdb_found: Optional[str] = None
+    pdb_url: Optional[str] = None
 
+async def handle_router_result(result_dict: dict):
+    """
+    Shared helper function to process the router's output,
+    execute TAPO if a single chain is found, and build the final response.
+    """
+    # If the router detected Scenario B or C (Requires user input)
+    if result_dict.get("status") == "multiple_choices":
+        return JSONResponse(content=result_dict)
+        
+    # If the router detected Scenario A (Single Chain - Auto execute)
+    elif result_dict.get("status") == "success":
+        pdb_content = result_dict.get("pdb_found")
+        chain_id = result_dict.get("chain_id", "A")
+        
+        # Immediate execution of detector
+        tapo_results = await run_tapo_analysis(pdb_content, chain_id, result_dict.get("protein_id", "unknown"))
+        
+        # Build the final payload expected by StructureView.tsx
+        return JSONResponse(content={
+            "status": "success",
+            "input_format": result_dict.get("input_format"),
+            "protein_id": result_dict.get("protein_id"),
+            "id_type": result_dict.get("id_type"),
+            "chain_id": chain_id,
+            "sequence": result_dict.get("sequence", ""),
+            "length": result_dict.get("length", 0),
+            "repeats": tapo_results, 
+            "pdb_found": pdb_content
+        })
+        
+    else:
+        return JSONResponse(content=result_dict, status_code=400)
+    
 # ---------------------------------------------------------
 # ENDPOINT 1: TEXT QUERY ONLY
 # ---------------------------------------------------------
-@app.post("/api/prepare-structure/text")
-async def process_text_request(
-    chain_id: str = Form(..., pattern=r"^([A-Za-z0-9]|[Aa][Ll][Ll])$"),
-    text_query: str = Form(...) 
-):
-    """Handles ID and Sequence queries."""
-    result_dict = structure_router("text", text_query=text_query, chain_id=chain_id)
-    
-    return await _handle_router_response(result_dict, chain_id)
 
+@app.post("/api/prepare-structure/text")
+async def process_text_request(text_query: str = Form(...)): 
+    try:
+        result_dict = structure_router("text", text_query=text_query)
+        return await handle_router_result(result_dict)
+    except Exception as e:
+        print(f"[MAIN] Error processing text: {e}")
+        return JSONResponse(
+            content={"status": "error", "message": "Server error processing text query."}, 
+            status_code=500
+        )
 # ---------------------------------------------------------
 # ENDPOINT 2: FILE UPLOAD ONLY
 # ---------------------------------------------------------
+
 @app.post("/api/prepare-structure/file")
 async def process_file_request(
-    chain_id: str = Form(..., pattern=r"^([A-Za-z0-9]|[Aa][Ll][Ll])$"),
     file_upload: UploadFile = File(...) 
 ):
-    """Handles PDB, mmCIF, and FASTA file uploads."""
-    content_bytes = await file_upload.read()
-    file_content = content_bytes.decode('utf-8')
-    
-    result_dict = structure_router("file", file_content=file_content, chain_id=chain_id)
-    
-    return await _handle_router_response(result_dict, chain_id)
+    try:
+        content_bytes = await file_upload.read()
+        file_content = content_bytes.decode('utf-8')
+        result_dict = structure_router("file", file_content=file_content)
+        return await handle_router_result(result_dict)
+    except Exception as e:
+        print(f"[MAIN] Error processing file: {e}") 
+        return JSONResponse(
+            content={"status": "error", "message": "Server error processing file upload."}, 
+            status_code=500
+        )
+# ---------------------------------------------------------
+# ENDPOINT 3: DETECT REPEATS
+# ---------------------------------------------------------
+
+@app.post("/api/detect-repeats")
+async def detect_repeats(request: DetectRepeatsRequest):
+    try:
+        pdb_content = None
+        
+        # SCENARIO B: Already has the raw PDB text 
+        if request.choice_type == "chains":
+            if not request.pdb_found:
+                return JSONResponse(
+                    content={"status": "error", "message": "Missing PDB content for chain selection."},
+                    status_code=400
+                )
+            pdb_content = request.pdb_found
+            
+        # SCENARIO C: AlphaFold selection. The frontend only has the URL.
+        elif request.choice_type == "alphafold_models":
+            if not request.pdb_url:
+                return JSONResponse(
+                    content={"status": "error", "message": "Missing PDB URL for AlphaFold selection."},
+                    status_code=400
+                )
+            
+            print(f"[MAIN] Downloading specific AlphaFold model from: {request.pdb_url}")
+            try:
+                response = requests.get(request.pdb_url, timeout=15)
+                if response.status_code == 200:
+                    pdb_content = response.text
+                else:
+                    return JSONResponse(
+                        content={"status": "error", "message": f"Failed to download AlphaFold model (HTTP {response.status_code})."},
+                        status_code=400
+                    )
+            except requests.exceptions.RequestException as e:
+                return JSONResponse(
+                    content={"status": "error", "message": f"Network error downloading AlphaFold model: {str(e)}"},
+                    status_code=500
+                )
+        else:
+            return JSONResponse(
+                content={"status": "error", "message": "Invalid choice_type provided."},
+                status_code=400
+            )
+
+        print(f"[MAIN] Executing TAPO for chain {request.chain_id}...")
+        
+        # Execute detector
+        tapo_results = await run_tapo_analysis(pdb_content, request.chain_id, request.protein_id)
+        
+        # Build the final payload expected by StructureView.tsx
+        return JSONResponse(content={
+            "status": "success",
+            "input_format": request.input_format,
+            "protein_id": request.protein_id,
+            "id_type": request.id_type,
+            "chain_id": request.chain_id,
+            "sequence": request.sequence,
+            "length": request.length,
+            "repeats": tapo_results, 
+            "pdb_found": pdb_content
+        })
+
+    except Exception as e:
+        print(f"[MAIN] Error executing detect_repeats: {e}")
+        return JSONResponse(
+            content={"status": "error", "message": "Server error during repeat detection."}, 
+            status_code=500
+        )

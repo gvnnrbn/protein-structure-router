@@ -1,70 +1,33 @@
 import io
+import warnings
+from Bio.PDB.PDBParser import PDBParser
+from typing import List, Dict
 import re
 from unittest import result
 from Bio.PDB.MMCIFParser import MMCIFParser
 from Bio.PDB.PDBIO import PDBIO
-from Bio.PDB import PDBParser
-from src.validators import (
-    is_valid_pdb_id,
-    is_valid_uniprot_accession,
-    is_pdb_format,
-)
 
-
-def parse_fasta_to_sequence(fasta_content: str, chain_id: str) -> str:
-    lines = fasta_content.strip().split('\n')
+def parse_fasta_to_sequence(fasta_content: str) -> str:
+    """
+    Parses a FASTA string and extracts the first amino acid sequence found.
+    Since the sequence will be used to search for a matching PDB structure, grabbing the first record is sufficient.
+    """
+    lines = fasta_content.splitlines()
+    sequence_lines = []
     
-    sequences = {}
-    current_header = ""
-    
-    # Group sequence blocks by their FASTA headers
     for line in lines:
-        clean_line = line.strip()
-        if not clean_line:
+        line = line.strip()
+        if not line:
+            continue
+        
+        if line.startswith(">"):
+            if sequence_lines:
+                break
             continue
             
-        if clean_line.startswith('>'):
-            current_header = clean_line
-            sequences[current_header] = []
-        elif current_header:
-            sequences[current_header].append(clean_line)
-        else:
-            # Handles raw sequence files without any '>' headers
-            current_header = "raw_sequence"
-            sequences[current_header] = [clean_line]
-            
-    target_sequence_blocks = []
-    
-    # Find the sequence that matches the requested chain_id
-    for header, blocks in sequences.items():
-        if header == "raw_sequence":
-            target_sequence_blocks = blocks
-            break
-            
-        # Matches standard RCSB PDB format: "|Chains A, C[auth D]|"
-        chain_match = re.search(r'Chains?\s+([^|]+)', header, re.IGNORECASE)
+        sequence_lines.append(line)
         
-        if chain_match:
-            valid_chains = re.findall(r'\b[A-Za-z0-9]+\b', chain_match.group(1))
-            if chain_id in valid_chains:
-                target_sequence_blocks = blocks
-                break
-        else:
-            # Fallback for generic FASTA files where the ID is directly in the header
-            if f">{chain_id}" in header or f"|{chain_id}|" in header:
-                target_sequence_blocks = blocks
-                break
-                
-    # Fallback to the first available sequence if no chain strictly matches
-    if not target_sequence_blocks and sequences:
-        target_sequence_blocks = list(sequences.values())[0]
-
-    raw_sequence = "".join(target_sequence_blocks).upper()
-    
-    if not re.match(r'^[ACDEFGHIKLMNPQRSTVWY]+$', raw_sequence):
-        print(f"[CONVERTER] Warning: FASTA sequence for chain {chain_id} contains non-standard amino acids or gaps.")
-        
-    return raw_sequence
+    return "".join(sequence_lines)
 
 def convert_mmcif_to_pdb(mmcif_content: str) -> str:
     try:
@@ -104,132 +67,110 @@ def convert_mmcif_to_pdb(mmcif_content: str) -> str:
         print(f"[CONVERTER]: {err_msg}")
         return {"status": "error", "data": None, "message": err_msg,"protein_id":pdb_id if pdb_id else "Unknown", "id_type": "pdb"}
 
-def clean_pdb_text(dirty_text: str) -> str:
-    if '\\n' in dirty_text:
-        dirty_text = dirty_text.replace('\\n', '\n')
-        
-    clean_lines = []
-    is_capturing = False
-    
-    for line in dirty_text.split('\n'):
-        trimmed_line = re.sub(r'^[\s\\]+', '', line)
-        clean_lines.append(trimmed_line)
-                
-    return '\n'.join(clean_lines) + '\n' if clean_lines else ''
-
-def get_chains_from_pdb(pdb_string: str) -> list:
+def extract_pdb_metadata_and_chains(pdb_content: str) -> dict:
     """
-    Extracts a list of available chains (e.g., ['A', 'B']) from a PDB string using BioPython.
+    Single-pass parser for PDB content.
+    Extracts global metadata (protein_id, id_type) and all available chains
+    with their respective sequences and lengths.
+    id_type will strictly be "pdb", "uniprot", or "unknown".
     """
-    # QUIET=True prevents warnings for imperfect or non-standard PDB formats
-    parser = PDBParser(QUIET=True) 
-    structure = parser.get_structure("temp_structure", io.StringIO(pdb_string))
-    
-    chains = []
-    for model in structure:
-        for chain in model:
-            if chain.id not in chains:
-                chains.append(chain.id)
-        break 
-    return chains
-
-
-
-def extract_pdb_metadata(result: dict, chain_id: str) -> dict:
-    """
-    Extracts protein ID, ID type (PDB or UniProt), sequence, and length from the PDB content.
-    """
-    if not result or "data" not in result or not result["data"]:
-        return result
-        
-    pdb_content = result["data"]
-    
-    # Validate that it is actually a PDB format before parsing
-    if not is_pdb_format(pdb_content):
-        return result
-        
-    # 1. Extract ID and its type (PDB or UniProt)
     protein_id = None
     id_type = "unknown"
     
-    lines = pdb_content.splitlines()
+    seqres_data = {}
+    atom_data = {}
+    last_res_num = {}
     
-    # Iterate over the first 100 lines where metadata is usually located
-    for line in lines[:100]: 
-        if line.startswith("HEADER"):
-            parts = line.split()
-            if parts:
-                candidate = parts[-1]
-                if is_valid_pdb_id(candidate):
-                    protein_id = candidate
-                    id_type = "pdb"
-                    break
-        elif line.startswith("DBREF"):
-            # DBREF usually has the PDB ID at the start and the UniProt reference in following columns
-            parts = line.split()
-            for part in parts:
-                if is_valid_uniprot_accession(part):
-                    protein_id = part
-                    id_type = "uniprot"
-                    break
-        elif line.startswith("TITLE") or line.startswith("COMPND"):
-            # Fallback for AlphaFold files where the UniProt ID might be in Title/Compnd
-            for word in line.split():
-                # Remove attached punctuation marks just in case
-                clean_word = ''.join(c for c in word if c.isalnum() or c == '-')
-                if is_valid_uniprot_accession(clean_word):
-                    protein_id = clean_word
-                    id_type = "uniprot"
-                    break
-                elif is_valid_pdb_id(clean_word):
-                    protein_id = clean_word
-                    id_type = "pdb"
-                    break
-                    
-        if protein_id:
-            break
-
-    # 2. Extract sequence based on the selected chain (chain_id)
     three_to_one = {
-        'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D', 'CYS': 'C',
-        'GLN': 'Q', 'GLU': 'E', 'GLY': 'G', 'HIS': 'H', 'ILE': 'I',
-        'LEU': 'L', 'LYS': 'K', 'MET': 'M', 'PHE': 'F', 'PRO': 'P',
-        'SER': 'S', 'THR': 'T', 'TRP': 'W', 'TYR': 'Y', 'VAL': 'V'
+        'ALA':'A', 'ARG':'R', 'ASN':'N', 'ASP':'D', 'CYS':'C',
+        'GLU':'E', 'GLN':'Q', 'GLY':'G', 'HIS':'H', 'ILE':'I',
+        'LEU':'L', 'LYS':'K', 'MET':'M', 'PHE':'F', 'PRO':'P',
+        'SER':'S', 'THR':'T', 'TRP':'W', 'TYR':'Y', 'VAL':'V'
     }
     
-    sequence = []
+    lines = pdb_content.splitlines()
     
-    # Try with SEQRES first (the official and recommended method)
     for line in lines:
-        if line.startswith("SEQRES"):
+        # 1. Extract PDB ID from HEADER (Highest Priority)
+        if line.startswith("HEADER"):
+            match = re.search(r'([A-Za-z0-9]{4})$', line.strip())
+            if match:
+                protein_id = match.group(1)
+                id_type = "pdb"
+                
+        # 2. Extract UniProt ID from TITLE (AlphaFold specific, fallback)
+        elif line.startswith("TITLE ") and id_type != "pdb":
+            if "ALPHAFOLD" in line.upper():
+                # Example: TITLE     ALPHAFOLD MONOMER v2.0 PREDICTION FOR O15294
+                match = re.search(r'FOR\s+([A-Za-z0-9]{6,10})', line.upper())
+                if match:
+                    protein_id = match.group(1)
+                    id_type = "uniprot"
+                    
+        # 3. Extract UniProt ID from DBREF (Fallback)
+        elif line.startswith("DBREF") and id_type != "pdb":
             parts = line.split()
-            # Column 3 in SEQRES contains the chain identifier
-            if len(parts) > 2 and parts[2] == chain_id:
-                for res in parts[4:]:
-                    sequence.append(three_to_one.get(res, 'X'))
+            if len(parts) > 6:
+                db_name = parts[5]
+                db_accession = parts[6]
+                if db_name in ["UNP", "SWS"] or re.match(r'^[O,P,Q][0-9][A-Z0-9]{3}[0-9]|[A-N,R-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2}$', db_accession):
+                    protein_id = db_accession
+                    id_type = "uniprot"
                     
-    # If SEQRES is missing, iterate through ATOMs as a fallback
-    if not sequence:
-        last_res_seq = None
-        for line in lines:
-            if line.startswith("ATOM"):
-                # In PDB format, the chain identifier is located at column 22 (index 21)
-                chain = line[21]
-                if chain == chain_id:
-                    res_name = line[17:20].strip()
-                    res_seq = line[22:26].strip()
+        # Extract sequence from SEQRES (Preferred)
+        elif line.startswith("SEQRES"):
+            chain_id = line[11]
+            if chain_id == ' ': 
+                continue
+                
+            residues = line[19:].split()
+            if chain_id not in seqres_data:
+                seqres_data[chain_id] = []
+                
+            for res in residues:
+                seqres_data[chain_id].append(three_to_one.get(res.upper(), 'X'))
+                
+        # Extract sequence from ATOM as a fallback
+        elif line.startswith("ATOM  ") or line.startswith("HETATM"):
+            # Only use CA atoms to avoid counting the same residue multiple times
+            if line[12:16].strip() == "CA":
+                chain_id = line[21]
+                if chain_id == ' ': 
+                    continue
                     
-                    # Avoid adding the same amino acid multiple times for each of its atoms
-                    if res_seq != last_res_seq:
-                        sequence.append(three_to_one.get(res_name, 'X'))
-                        last_res_seq = res_seq
-                        
-    seq_str = "".join(sequence)
+                res_name = line[17:20].strip()
+                res_num = line[22:26].strip()
+                
+                if chain_id not in atom_data:
+                    atom_data[chain_id] = []
+                    last_res_num[chain_id] = None
+                    
+                if res_num != last_res_num[chain_id]:
+                    atom_data[chain_id].append(three_to_one.get(res_name.upper(), 'X'))
+                    last_res_num[chain_id] = res_num
+
+    # Build the final chains array
+    chains = []
+    all_chain_ids = set(seqres_data.keys()).union(set(atom_data.keys()))
     
-    # 3. Assign the new values to the result
-    result["protein_id"] = protein_id
-    result["id_type"] = id_type
-    result["sequence"] = seq_str
-    result["length"] = len(seq_str)
-    
-    return result
+    for cid in sorted(all_chain_ids):
+        # Prioritize SEQRES over ATOM as it contains the full intended sequence
+        if cid in seqres_data and len(seqres_data[cid]) > 0:
+            seq_str = "".join(seqres_data[cid])
+        elif cid in atom_data and len(atom_data[cid]) > 0:
+            seq_str = "".join(atom_data[cid])
+        else:
+            seq_str = ""
+            
+        if seq_str:
+            chains.append({
+                "chain_id": cid,
+                "sequence": seq_str,
+                "length": len(seq_str)
+            })
+            
+    return {
+        "protein_id": protein_id,
+        "id_type": id_type,
+        "chains": chains
+    }

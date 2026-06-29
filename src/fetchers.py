@@ -83,8 +83,63 @@ def search_rcsb_by_uniprot_id(uniprot_id):
         print(f"[FETCHER] {err_msg}")
         return {"status": "error", "data": None, "message": err_msg}
  
-
 def fetch_alphafold_model(uniprot_id: str = None, specific_af_id: str = None) -> Union[str, Dict]:
+    """
+    Queries AlphaFold by UniProt ID or specific AlphaFold ID.
+    - If a specific AF ID is requested, it downloads that exact model.
+    - If no specific AF ID is requested and there is only 1 result, it downloads it.
+    - If multiple results are found, it returns a dict with the list of options.
+    """
+    # Determine the target ID for the API
+    target_id = specific_af_id if specific_af_id else uniprot_id
+    api_url = f"https://alphafold.ebi.ac.uk/api/prediction/{target_id}"
+    
+    try:
+        response = requests.get(api_url, headers={'accept': 'application/json'}, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if not data:
+                print(f"[FETCHER] Error: No AlphaFold model found for {target_id}")
+                return {"status": "error", "data": None, "message": f"No AlphaFold model found for {target_id}"} 
+            
+            # SCENARIO 1: A specific AlphaFold ID was requested (User already selected one)
+            if specific_af_id:
+                for entry in data:
+                    if entry.get("modelEntityId") == specific_af_id:
+                        return _download_pdb_from_alphafold(entry.get("pdbUrl"), target_id)
+                        
+                print(f"[FETCHER] Error: Specific AlphaFold model {target_id} not found in API response.")
+                return {"status": "error", "data": None, "message": "Specific model not found"} 
+            
+            # SCENARIO C: UniProt ID with MULTIPLE models found
+            if len(data) > 1:
+                print(f"[FETCHER] Multiple models found for {target_id}. Prompting user selection.")
+                options = []
+                for entry in data:
+                    sequence = entry.get("uniprotSequence", "")
+                    options.append({
+                        "chain_id": "A",  # AlphaFold defaults to chain A
+                        "alphafold_id": entry.get("modelEntityId"),
+                        "PLDDT": entry.get("globalMetricValue"),
+                        "sequence": sequence,
+                        "length": len(sequence),
+                        "pdbUrl": entry.get("pdbUrl")
+                    })
+                    
+                return {"status": "multiple_choices", "data": options, "message": None}
+            
+            # SCENARIO A: UniProt ID with EXACTLY ONE model (Auto-download)
+            return _download_pdb_from_alphafold(data[0].get("pdbUrl"), data[0].get("modelEntityId"))
+                
+        return {"status": "error", "data": None, "message": f"AlphaFold API error: {response.status_code}"}
+        
+    except requests.exceptions.RequestException as e:
+        print(f"[FETCHER] Network Error during AlphaFold fetch: {e}")
+        return {"status": "error", "data": None, "message": str(e)}
+    
+def old_fetch_alphafold_model(uniprot_id: str = None, specific_af_id: str = None) -> Union[str, Dict]:
     """
     Queries AlphaFold by UniProt ID.
     - If a specific AF ID is requested, it downloads that exact model.

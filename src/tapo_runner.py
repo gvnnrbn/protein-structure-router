@@ -1,12 +1,8 @@
 import asyncio
 import os
-import shutil
 import tempfile
 
-TAPO_DIR = os.environ.get("TAPO_DIR", "/opt/tapo")
-TAPO_TMP_DIR = "/home/sgeadmin/work/tmp"
-TAPO_DSSP_BANK = "/home/sgeadmin/work/bank/dssp"
-
+# Pre-defined palette for up to 5 distinct tandem repeat domains (clusters)
 CLUSTER_PALETTES = [
     (230, 159, 0),  
     (86, 180, 233),  
@@ -38,6 +34,9 @@ def get_contrasting_color(base_rgb: tuple, unit_index: int):
 def parse_tapo_text(raw_text: str) -> list:
     """
     Parses the raw text output from the TAPO .o file into the JSON structure
+    expected by the frontend.
+    
+    Filters rows where the 3rd column ends with '_selected'.
     """
     clusters_data = []
     cluster_count = 0
@@ -94,70 +93,40 @@ def parse_tapo_text(raw_text: str) -> list:
         
     return clusters_data
 
-
-def _provide_dssp(project: str, chain: str) -> None:
-    """
-    Copy a pre-computed DSSP file from the bank into the TAPO TMP_DIR so that
-    TAPO can find it at {TMP_DIR}/{project}{chain}.dssp.
-    DSSP bank layout: {DSSP_BANK}/{pdbid[1:3]}/{pdbid}{chain}.dssp
-    """
-    dssp_target = os.path.join(TAPO_TMP_DIR, f"{project}{chain}.dssp")
-    if os.path.exists(dssp_target):
-        return
-
-    if len(project) < 3:
-        return
-
-    mid2 = project[1:3]
-    bank_path = os.path.join(TAPO_DSSP_BANK, mid2, f"{project}{chain}.dssp")
-    if os.path.exists(bank_path):
-        os.makedirs(TAPO_TMP_DIR, exist_ok=True)
-        shutil.copy2(bank_path, dssp_target)
-        print(f"[DSSP] Copied from bank: {bank_path} → {dssp_target}")
-
-
 async def run_tapo_analysis(pdb_content: str, target_chain: str, protein_id: str, timeout_seconds: int = 240):
-    print(f"[TAPO RUNNER] Preparing direct Java execution for chain {target_chain}...")
-
-    # TAPO uses project name to look up DSSP at {TMP_DIR}/{project}{chain}.dssp.
-    # The bank stores files as {pdbid_lower}{chain}.dssp, so we use lowercase PDB ID.
-    project = protein_id.lower()
-
+    """
+    Executes the TAPO Docker container asynchronously with safety limits.
+    Includes Docker resource constraints and asyncio timeouts to prevent host freezes.
+    """
+    print(f"[TAPO RUNNER] Preparing secure Docker execution for chain {target_chain}...")
+    
     with tempfile.TemporaryDirectory() as temp_dir:
-        input_pdb_path = os.path.join(temp_dir, f"{project}_{target_chain}.pdb")
-        output_path = os.path.join(temp_dir, f"{project}_{target_chain}.o")
+        input_pdb_name = f"{protein_id}_{target_chain}.pdb"
+        input_pdb_path = os.path.join(temp_dir, input_pdb_name)
+        
         with open(input_pdb_path, "w", encoding="utf-8") as f:
             f.write(pdb_content)
-        # Provide DSSP from bank when available (dramatically improves scoring accuracy)
-        _provide_dssp(project, target_chain)
-
-        classpath = "target/*:dependencies/bugs/vecmath-1.3.1.jar:dependencies/*"
-        
+            
         output_file_name = f"{protein_id}_{target_chain}.o"
-
-        cmd = [
-            "java",
-            "-Xmx2042m",
-            "-Djava.awt.headless=true",
-            "-Dlog4j.skipJansi=true",
-            "-cp", classpath,
-            "apps.TaPo",
-            "-f", input_pdb_path,
-            "-p", project,
-            "-c", target_chain,
-            "-nCore", "1",
-            "-o", output_path,
-        ]
-
-        print(f"[TAPO RUNNER] Command: java ... apps.TaPo -f {input_pdb_path} -p {project} -c {target_chain} -o {output_path}")
-
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=TAPO_DIR,
+        
+        # SAFETY MEASURE 1: Docker limits
+        docker_cmd = (
+            f"docker run --rm "
+            f"--cpus=\"1.0\" -m=\"1g\" "
+            f"-v {temp_dir}:/pdbdata "
+            f"-v {temp_dir}:/workdata "
+            f"-w /home/sgeadmin/save/BioApps/tapo-v1.1.3 "
+            f"pdoviet/tapo:v1.1.3-alpha.2 "
+            f"sh bin/run apps.TaPo '-f /pdbdata/{input_pdb_name} -p TEMP -c {target_chain} -nCore 1 -o /workdata/{output_file_name}'"
         )
-
+        
+        print(f"[TAPO RUNNER] Running command: {docker_cmd}")
+        
+        process = await asyncio.create_subprocess_shell(
+            docker_cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
         
         try:
             # SAFETY MEASURE 2: Asyncio Timeout

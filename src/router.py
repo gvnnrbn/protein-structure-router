@@ -43,7 +43,7 @@ def structure_router(query_type: str, text_query: str = None, file_content: str 
         # FASTA file: extract sequence and search for pdb
         if is_fasta_format(file_content):
             print("[ROUTER] FASTA file detected. Extracting sequence...")
-            raw_sequence = parse_fasta_to_sequence(file_content)
+            raw_sequence = parse_fasta_to_sequence(file_content, chain_id)
             if raw_sequence and is_amino_acid_sequence(raw_sequence):
                 result = search_rcsb_by_sequence(raw_sequence)
                 result["format"] = "FASTA"

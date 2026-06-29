@@ -46,16 +46,28 @@ def is_fasta_format(text: str) -> bool:
     clean_text = text.strip()
     return clean_text.startswith(">") and "\n" in clean_text
 
-def is_pdb_format(text: str) -> bool:
+from typing import Union, List, Any
+def is_pdb_format(text: Union[str, List[str], Any]) -> bool:
     """
-    Checks if the text is a PDB file.
+    Checks if the text is a PDB file. Safely handles lists of lines.
     """
+    if isinstance(text, list):
+        text = "\n".join(str(line) for line in text)
+    
+    if not isinstance(text, str):
+        return False
+        
     headers = ('HEADER', 'TITLE', 'REMARK', 'CRYST1')
-    return any(text.startswith(h) for h in headers) or 'ATOM  ' in text
+    return any(text.lstrip().startswith(h) for h in headers) or 'ATOM  ' in text
 
 def is_mmcif_format(text: str) -> bool:
     """
     Checks if the text is an mmCIF file. mmCIF files must start with 'data_' and contain 'loop_'
     """
+    if isinstance(text, list):
+        text = "\n".join(str(line) for line in text)
+    if not isinstance(text, str):
+        return False
+        
     clean_text = text.strip()
     return clean_text.startswith('data_') and 'loop_' in clean_text

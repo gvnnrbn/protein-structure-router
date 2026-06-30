@@ -93,7 +93,7 @@ def parse_tapo_text(raw_text: str) -> list:
         
     return clusters_data
 
-async def run_tapo_analysis(pdb_content: str, target_chain: str, protein_id: str, timeout_seconds: int = 240):
+async def run_tapo_analysis(pdb_content: str, target_chain: str, protein_id: str, timeout_seconds: int = 300):
     """
     Executes the TAPO Docker container asynchronously with safety limits.
     Includes Docker resource constraints and asyncio timeouts to prevent host freezes.
